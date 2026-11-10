@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ShortsCutter — AI Video Clipper</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    body { font-family: 'Inter', sans-serif; }
+    .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: #1f2937; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 3px; }
+  </style>
+</head>
+<body class="bg-gray-950 text-gray-100 min-h-screen flex flex-col">
+  <div id="root" class="flex-1 flex flex-col"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    const MOCK_CLIPS = [
+      {
+        id: "clip-1",
+        title: "Самый важный секрет продуктивности",
+        reason: "Высокая эмоциональная динамика в начале и чёткий вывод в конце. Идеальный хук.",
+        start: 12,
+        end: 45,
+        retention_score: 9.2,
+        scores: { hook: 9.5, curiosity_or_emotion: 9.0, self_contained: 9.2, payoff: 9.0, pacing: 8.8 },
+        transcript: "Всё, что вам нужно знать о фокусе — это правило первых пяти минут..."
+      },
+      {
+        id: "clip-2",
+        title: "Почему 90% стартапов проваливаются",
+        reason: "Сильный парадокс в первые 3 секунды удерживает внимание зрителя.",
+        start: 110,
+        end: 148,
+        retention_score: 8.7,
+        scores: { hook: 9.0, curiosity_or_emotion: 8.8, self_contained: 8.5, payoff: 8.6, pacing: 8.4 },
+        transcript: "Мы потратили 2 года на продукт, который никому не был нужен..."
+      },
+      {
+        id: "clip-3",
+        title: "Главная ошибка при выборе стека",
+        reason: "Короткий практический совет с яркой кульминацией.",
+        start: 205,
+        end: 240,
+        retention_score: 8.1,
+        scores: { hook: 8.2, curiosity_or_emotion: 8.0, self_contained: 8.4, payoff: 8.0, pacing: 8.0 },
+        transcript: "Не выбирайте инструмент только из-за хайпа в Твиттере..."
+      }
+    ];
+
+    function App() {
+      const [step, setStep] = useState(1); // 1: Input, 2: Progress, 3: Results
+      const [url, setUrl] = useState('');
+      const [hasRights, setHasRights] = useState(false);
+      const [jumpCuts, setJumpCuts] = useState(true);
+      const [bgBlur, setBgBlur] = useState(true);
+      const [progressStage, setProgressStage] = useState(0);
+      const [progressPercent, setProgressPercent] = useState(0);
+      const [clips, setClips] = useState(MOCK_CLIPS);
+      const [selectedClip, setSelectedClip] = useState(MOCK_CLIPS[0]);
+
+      const stages = [
+        "Загрузка и валидация видео (Ingest)...",
+        "Транскрипция аудио с помощью Whisper API...",
+        "Анализ цепляющих моментов через LLM...",
+        "Привязка к границам предложений и вырезание пауз...",
+        "Генерация 9:16 видео с вшитыми ASS-субтитрами..."
+      ];
+
+      const startProcessing = () => {
+        setStep(2);
+        setProgressStage(0);
+        setProgressPercent(10);
+      };
+
+      useEffect(() => {
+        if (step === 2) {
+          const interval = setInterval(() => {
+            setProgressPercent((prev) => {
+              if (prev >= 100) {
+                clearInterval(interval);
+                setTimeout(() => setStep(3), 500);
+                return 100;
+              }
+              const next = prev + 15;
+              if (next > 25 && next <= 45) setProgressStage(1);
+              else if (next > 45 && next <= 65) setProgressStage(2);
+              else if (next > 65 && next <= 85) setProgressStage(3);
+              else if (next > 85) setProgressStage(4);
+              return next;
+            });
+          }, 800);
+          return () => clearInterval(interval);
+        }
+      }, [step]);
+
+      const handleSliderChange = (clipId, field, value) => {
+        const updated = clips.map(c => c.id === clipId ? { ...c, [field]: Number(value) } : c);
+        setClips(updated);
+        if (selectedClip.id === clipId) {
+          setSelectedClip({ ...selectedClip, [field]: Number(value) });
+        }
+      };
+
+      return (
+        <div className="flex-1 flex flex-col min-h-screen">
+          {/* Header */}
+          <header className="border-b border-gray-800 bg-gray-900/50 backdrop-blur px-6 py-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="bg-indigo-600 text-white p-2 rounded-lg font-bold text-xl flex items-center justify-center w-10 h-10">
+                SC
+              </div>
+              <span className="text-xl font-bold tracking-tight">ShortsCutter</span>
+              <span className="text-xs bg-indigo-500/20 text-indigo-400 px-2.5 py-1 rounded-full font-medium">v1.0 Local</span>
+            </div>
+            {step === 3 && (
+              <button onClick={() => setStep(1)} className="text-sm text-gray-400 hover:text-white transition">
+                <i className="fa-solid fa-arrow-left mr-2"></i>Новый проект
+              </button>
+            )}
+          </header>
+
+          {/* Main Content */}
+          <main className="flex-1 max-w-6xl w-full mx-auto p-6 flex flex-col justify-center">
+            {step === 1 && (
+              <div className="max-w-2xl mx-auto w-full space-y-6">
+                <div className="text-center space-y-2">
+                  <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
+                    Нарезка вирусных Shorts & TikTok
+                  </h1>
+                  <p className="text-gray-400">
+                    Автоматический поиск лучших моментов, кадрирование 9:16 и динамические субтитры
+                  </p>
+                </div>
+
+                <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 shadow-xl space-y-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Ссылка на YouTube-видео</label>
+                    <input
+                      type="url"
+                      placeholder="https://www.youtube.com/watch?v=..."
+                      value={url}
+                      onChange={(e) => setUrl(e.target.value)}
+                      className="w-full bg-gray-950 border border-gray-700 rounded-xl px-4 py-3 text-gray-100 placeholder-gray-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
+                    />
+                  </div>
+
+                  <div className="relative border-2 border-dashed border-gray-700 hover:border-indigo-500/50 rounded-xl p-8 text-center bg-gray-950/50 transition cursor-pointer">
+                    <i className="fa-solid fa-cloud-arrow-up text-3xl text-gray-400 mb-2"></i>
+                    <p className="text-sm text-gray-300">Перетащите видеофайл сюда или кликните для выбора</p>
+                    <p className="text-xs text-gray-500 mt-1">MP4, MOV до 3 часов</p>
+                  </div>
+
+                  <div className="space-y-3 pt-2 border-t border-gray-800">
+                    <label className="flex items-center gap-3 cursor-pointer text-sm text-gray-300">
+                      <input
+                        type="checkbox"
+                        checked={jumpCuts}
+                        onChange={(e) => setJumpCuts(e.target.checked)}
+                        className="w-4 h-4 rounded bg-gray-950 border-gray-700 text-indigo-600 focus:ring-indigo-500"
+                      />
+                      <span>Вырезать паузы длиннее 0.8 сек (Jump cuts)</span>
+                    </label>
+
+                    <label className="flex items-center gap-3 cursor-pointer text-sm text-gray-300">
+                      <input
+                        type="checkbox"
+                        checked={bgBlur}
+                        onChange={(e) => setBgBlur(e.target.checked)}
+                        className="w-4 h-4 rounded bg-gray-950 border-gray-700 text-indigo-600 focus:ring-indigo-500"
+                      />
+                      <span>Размытый фон для видео несвойственного формата</span>
+                    </label>
+
+                    <label className="flex items-center gap-3 cursor-pointer text-sm font-medium text-amber-400 pt-2">
+                      <input
+                        type="checkbox"
+                        checked={hasRights}
+                        onChange={(e) => setHasRights(e.target.checked)}
+                        className="w-4 h-4 rounded bg-gray-950 border-gray-700 text-indigo-600 focus:ring-indigo-500"
+                      />
+                      <span>У меня есть права на использование этого контента</span>
+                    </label>
+                  </div>
+
+                  <button
+                    disabled={!hasRights}
+                    onClick={startProcessing}
+                    className={`w-full py-4 rounded-xl font-semibold text-lg flex items-center justify-center gap-2 transition ${
+                      hasRights
+                        ? 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/20'
+                        : 'bg-gray-800 text-gray-500 cursor-not-allowed'
+                    }`}
+                  >
+                    <i className="fa-solid fa-wand-magic-sparkles"></i>
+                    Создать клипы
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {step === 2 && (
+              <div className="max-w-md mx-auto w-full bg-gray-900 border border-gray-800 rounded-2xl p-8 text-center space-y-6">
+                <div className="relative w-20 h-20 mx-auto flex items-center justify-center">
+                  <div className="absolute inset-0 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin"></div>
+                  <i className="fa-solid fa-film text-2xl text-indigo-400"></i>
+                </div>
+
+                <div className="space-y-2">
+                  <h2 className="text-xl font-bold">Обработка медиафайла</h2>
+                  <p className="text-sm text-gray-400 min-h-[40px]">{stages[progressStage]}</p>
+                </div>
+
+                <div className="w-full bg-gray-950 rounded-full h-3 overflow-hidden border border-gray-800">
+                  <div
+                    className="bg-indigo-600 h-full transition-all duration-300 rounded-full"
+                    style={{ width: `${progressPercent}%` }}
+                  ></div>
+                </div>
+
+                <div className="text-xs text-gray-500">SSE Connection Active • ./shortscutter/tmp</div>
+              </div>
+            )}
+
+            {step === 3 && (
+              <div className="space-y-6">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-2xl font-bold">Готовые клипы ({clips.length})</h2>
+                    <p className="text-xs text-gray-400 mt-1">
+                      * retention_score является эвристической оценкой и не гарантирует попадание в рекомендации.
+                    </p>
+                  </div>
+                  <button className="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2.5 rounded-xl font-medium text-sm flex items-center gap-2 transition">
+                    <i className="fa-solid fa-download"></i> Скачать всё (ZIP)
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {/* Left Column: Player & Dynamic Controls */}
+                  <div className="lg:col-span-1 bg-gray-900 border border-gray-800 rounded-2xl p-5 flex flex-col items-center space-y-4">
+                    <div className="relative w-[240px] h-[426px] bg-black rounded-xl overflow-hidden border border-gray-800 flex items-center justify-center shadow-2xl group">
+                      <div className="text-center p-4">
+                        <i className="fa-solid fa-circle-play text-4xl text-indigo-500 mb-2"></i>
+                        <p className="text-xs text-gray-400">Превью 9:16 (1080x1920)</p>
+                        <p className="text-xs font-semibold text-white mt-1">{selectedClip.title}</p>
+                      </div>
+                      {/* ASS Subtitle Overlay Mock */}
+                      <div className="absolute bottom-10 left-4 right-4 text-center">
+                        <span className="bg-black/70 backdrop-blur text-yellow-400 px-2 py-1 rounded text-sm font-extrabold uppercase tracking-wide">
+                          ФОКУС — ЭТО ПРАВИЛО
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="w-full space-y-3">
+                      <div className="flex justify-between text-xs text-gray-400">
+                        <span>Начало: {selectedClip.start} с</span>
+                        <span>Конец: {selectedClip.end} с</span>
+                        <span>Длительность: {selectedClip.end - selectedClip.start} с</span>
+                      </div>
+
+                      <div className="space-y-2">
+                        <input
+                          type="range"
+                          min="0"
+                          max={selectedClip.end - 5}
+                          value={selectedClip.start}
+                          onChange={(e) => handleSliderChange(selectedClip.id, 'start', e.target.value)}
+                          className="w-full accent-indigo-500"
+                        />
+                        <input
+                          type="range"
+                          min={selectedClip.start + 5}
+                          max="300"
+                          value={selectedClip.end}
+                          onChange={(e) => handleSliderChange(selectedClip.id, 'end', e.target.value)}
+                          className="w-full accent-indigo-500"
+                        />
+                      </div>
+
+                      <button className="w-full bg-gray-800 hover:bg-gray-700 text-gray-200 py-2 rounded-xl text-xs font-medium transition">
+                        Применить и перерендерить
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Right Column: Clips Grid & Analytics */}
+                  <div className="lg:col-span-2 space-y-4">
+                    {clips.map((clip) => (
+                      <div
+                        key={clip.id}
+                        onClick={() => setSelectedClip(clip)}
+                        className={`bg-gray-900 border rounded-2xl p-5 transition cursor-pointer space-y-4 ${
+                          selectedClip.id === clip.id ? 'border-indigo-500 ring-1 ring-indigo-500' : 'border-gray-800 hover:border-gray-700'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <h3 className="font-bold text-lg text-white">{clip.title}</h3>
+                            <p className="text-xs text-gray-400 mt-1">{clip.reason}</p>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-2xl font-black text-indigo-400">{clip.retention_score}</span>
+                            <span className="block text-[10px] text-gray-500 uppercase font-semibold">эвристическая оценка</span>
+                          </div>
+                        </div>
+
+                        {/* Breakdown Metrics */}
+                        <div className="grid grid-cols-5 gap-2 text-center bg-gray-950 p-3 rounded-xl border border-gray-800/80">
+                          <div>
+                            <span className="block text-[10px] text-gray-500">Hook</span>
+                            <span className="text-xs font-bold text-gray-300">{clip.scores.hook}</span>
+                          </div>
+                          <div>
+                            <span className="block text-[10px] text-gray-500">Curiosity</span>
+                            <span className="text-xs font-bold text-gray-300">{clip.scores.curiosity_or_emotion}</span>
+                          </div>
+                          <div>
+                            <span className="block text-[10px] text-gray-500">Context</span>
+                            <span className="text-xs font-bold text-gray-300">{clip.scores.self_contained}</span>
+                          </div>
+                          <div>
+                            <span className="block text-[10px] text-gray-500">Payoff</span>
+                            <span className="text-xs font-bold text-gray-300">{clip.scores.payoff}</span>
+                          </div>
+                          <div>
+                            <span className="block text-[10px] text-gray-500">Pacing</span>
+                            <span className="text-xs font-bold text-gray-300">{clip.scores.pacing}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between text-xs text-gray-400 pt-2 border-t border-gray-800">
+                          <span>Таймкод: {clip.start}s – {clip.end}s ({clip.end - clip.start}s)</span>
+                          <button className="bg-gray-800 hover:bg-gray-700 text-white px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5">
+                            <i className="fa-solid fa-download"></i> Скачать MP4
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </main>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
