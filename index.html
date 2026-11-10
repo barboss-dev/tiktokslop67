@@ -8,74 +8,149 @@
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
     body { font-family: 'Inter', sans-serif; }
     .custom-scrollbar::-webkit-scrollbar { width: 6px; }
-    .custom-scrollbar::-webkit-scrollbar-track { background: #1f2937; }
-    .custom-scrollbar::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 3px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: #0f172a; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
   </style>
 </head>
-<body class="bg-gray-950 text-gray-100 min-h-screen flex flex-col">
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col selection:bg-indigo-500 selection:text-white">
   <div id="root" class="flex-1 flex flex-col"></div>
 
   <script type="text/babel">
-    const { useState, useEffect } = React;
+    const { useState, useEffect, useRef } = React;
 
+    // МАКСИМАЛЬНЫЙ СПИСОК НАРЕЗОК БЕЗ ОГРАНИЧЕНИЙ
     const MOCK_CLIPS = [
       {
         id: "clip-1",
         title: "Самый важный секрет продуктивности",
-        reason: "Высокая эмоциональная динамика в начале и чёткий вывод в конце. Идеальный хук.",
-        start: 12,
-        end: 45,
-        retention_score: 9.2,
-        scores: { hook: 9.5, curiosity_or_emotion: 9.0, self_contained: 9.2, payoff: 9.0, pacing: 8.8 },
-        transcript: "Всё, что вам нужно знать о фокусе — это правило первых пяти минут..."
+        reason: "Высокая эмоциональная динамика в первые 3 сек. Идеальный хук и мощный вывод в конце.",
+        start: 5,
+        end: 25,
+        duration: 20,
+        retention_score: 9.6,
+        scores: { hook: 9.8, curiosity_or_emotion: 9.5, self_contained: 9.4, payoff: 9.6, pacing: 9.2 },
+        subtitleText: "ФОКУС — ЭТО ПРАВИЛО ПЕРВЫХ ПЯТИ МИНУТ"
       },
       {
         id: "clip-2",
-        title: "Почему 90% стартапов проваливаются",
-        reason: "Сильный парадокс в первые 3 секунды удерживает внимание зрителя.",
-        start: 110,
-        end: 148,
-        retention_score: 8.7,
-        scores: { hook: 9.0, curiosity_or_emotion: 8.8, self_contained: 8.5, payoff: 8.6, pacing: 8.4 },
-        transcript: "Мы потратили 2 года на продукт, который никому не был нужен..."
+        title: "Главная ошибка при выборе стека",
+        reason: "Короткий практический совет с яркой кульминацией без лишней тишины.",
+        start: 30,
+        end: 55,
+        duration: 25,
+        retention_score: 9.3,
+        scores: { hook: 9.5, curiosity_or_emotion: 9.1, self_contained: 9.2, payoff: 9.3, pacing: 9.0 },
+        subtitleText: "НЕ ВЫБИРАЙТЕ ИНСТРУМЕНТ ИЗ-ЗА ХАЙПА"
       },
       {
         id: "clip-3",
-        title: "Главная ошибка при выборе стека",
-        reason: "Короткий практический совет с яркой кульминацией.",
-        start: 205,
-        end: 240,
-        retention_score: 8.1,
-        scores: { hook: 8.2, curiosity_or_emotion: 8.0, self_contained: 8.4, payoff: 8.0, pacing: 8.0 },
-        transcript: "Не выбирайте инструмент только из-за хайпа в Твиттере..."
+        title: "Почему 90% стартапов проваливаются",
+        reason: "Сильный парадокс в первые секунды отлично удерживает внимание зрителя.",
+        start: 60,
+        end: 90,
+        duration: 30,
+        retention_score: 8.9,
+        scores: { hook: 9.1, curiosity_or_emotion: 8.8, self_contained: 8.7, payoff: 8.9, pacing: 8.6 },
+        subtitleText: "ПРОДУКТ КОТОРЫЙ НИКОМУ НЕ НУЖЕН"
+      },
+      {
+        id: "clip-4",
+        title: "Секрет дисциплины без выгорания",
+        reason: "Интригующий заголовок и пошаговый алгоритм решения проблемы за 35 секунд.",
+        start: 95,
+        end: 130,
+        duration: 35,
+        retention_score: 8.7,
+        scores: { hook: 8.9, curiosity_or_emotion: 8.6, self_contained: 8.8, payoff: 8.5, pacing: 8.4 },
+        subtitleText: "ДИСЦИПЛИНА — ЭТО НАВЫК А НЕ СИЛА ВОЛИ"
+      },
+      {
+        id: "clip-5",
+        title: "Как правильно ставить цели на год",
+        reason: "Высокий показатель удержания в финишной части с конкретным призывом к действию.",
+        start: 135,
+        end: 175,
+        duration: 40,
+        retention_score: 8.5,
+        scores: { hook: 8.6, curiosity_or_emotion: 8.4, self_contained: 8.6, payoff: 8.7, pacing: 8.2 },
+        subtitleText: "ФОКУСИРУЙТЕСЬ НА СИСТЕМЕ А НЕ НА РЕЗУЛЬТАТЕ"
+      },
+      {
+        id: "clip-6",
+        title: "Главный миф о дедлайнах и тайм-менеджменте",
+        reason: "Неожиданный поворот сюжета в середине фрагмента побуждает досмотреть до конца.",
+        start: 180,
+        end: 215,
+        duration: 35,
+        retention_score: 8.4,
+        scores: { hook: 8.5, curiosity_or_emotion: 8.3, self_contained: 8.5, payoff: 8.3, pacing: 8.1 },
+        subtitleText: "ПЛАНИРОВАНИЕ БЕЗ ДЕЙСТВИЙ — ЭТО ИЛЛЮЗИЯ"
+      },
+      {
+        id: "clip-7",
+        title: "Правило 2 минут: как победить прокрастинацию",
+        reason: "Максимальная концентрация полезной информации в сжатый отрезок времени.",
+        start: 220,
+        end: 250,
+        duration: 30,
+        retention_score: 8.2,
+        scores: { hook: 8.3, curiosity_or_emotion: 8.1, self_contained: 8.4, payoff: 8.2, pacing: 8.0 },
+        subtitleText: "НАЧНИТЕ ВСЕГО НА ДВЕ МИНУТЫ ПРЯМО СЕЙЧАС"
+      },
+      {
+        id: "clip-8",
+        title: "Что происходит в мозге при перегрузке",
+        reason: "Эмоциональный научно-популярный инсайт с высокой вовлеченностью зрителя.",
+        start: 255,
+        end: 295,
+        duration: 40,
+        retention_score: 8.0,
+        scores: { hook: 8.2, curiosity_or_emotion: 8.0, self_contained: 8.1, payoff: 7.9, pacing: 7.8 },
+        subtitleText: "МОЗГ ТРЕБУЕТ ОТДЫХА И ПЕРЕЗАГРУЗКИ"
       }
     ];
 
     function App() {
       const [step, setStep] = useState(1); // 1: Input, 2: Progress, 3: Results
       const [url, setUrl] = useState('');
+      const [videoFile, setVideoFile] = useState(null);
+      const [videoObjectUrl, setVideoObjectUrl] = useState(null);
       const [hasRights, setHasRights] = useState(false);
       const [jumpCuts, setJumpCuts] = useState(true);
-      const [bgBlur, setBgBlur] = useState(true);
+      const [renderMode, setRenderMode] = useState('blurred'); // 'blurred' | 'crop'
       const [progressStage, setProgressStage] = useState(0);
       const [progressPercent, setProgressPercent] = useState(0);
       const [clips, setClips] = useState(MOCK_CLIPS);
       const [selectedClip, setSelectedClip] = useState(MOCK_CLIPS[0]);
+      const [isProcessingDownload, setIsProcessingDownload] = useState(false);
+
+      const videoRef = useRef(null);
 
       const stages = [
-        "Загрузка и валидация видео (Ingest)...",
-        "Транскрипция аудио с помощью Whisper API...",
-        "Анализ цепляющих моментов через LLM...",
-        "Привязка к границам предложений и вырезание пауз...",
-        "Генерация 9:16 видео с вшитыми ASS-субтитрами..."
+        "Ingest: загрузка и валидация видеофайла (ffprobe)...",
+        "Транскрипция речи с помощью Whisper API (word-timestamps)...",
+        "Поиск цепляющих моментов через LLM (hook, payoff, pacing)...",
+        "Привязка к предложениям и удаление пауз > 0.8с...",
+        "Генерация 9:16 видео с вшитыми ASS-субтитрами и H.264/AAC..."
       ];
 
+      const handleFileSelect = (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (file) {
+          setVideoFile(file);
+          const localUrl = URL.createObjectURL(file);
+          setVideoObjectUrl(localUrl);
+        }
+      };
+
       const startProcessing = () => {
+        if (!hasRights) return;
         setStep(2);
         setProgressStage(0);
         setProgressPercent(10);
@@ -87,43 +162,205 @@
             setProgressPercent((prev) => {
               if (prev >= 100) {
                 clearInterval(interval);
-                setTimeout(() => setStep(3), 500);
+                setTimeout(() => setStep(3), 600);
                 return 100;
               }
-              const next = prev + 15;
-              if (next > 25 && next <= 45) setProgressStage(1);
-              else if (next > 45 && next <= 65) setProgressStage(2);
+              const next = prev + 12;
+              if (next > 20 && next <= 40) setProgressStage(1);
+              else if (next > 40 && next <= 65) setProgressStage(2);
               else if (next > 65 && next <= 85) setProgressStage(3);
               else if (next > 85) setProgressStage(4);
               return next;
             });
-          }, 800);
+          }, 700);
           return () => clearInterval(interval);
         }
       }, [step]);
 
       const handleSliderChange = (clipId, field, value) => {
-        const updated = clips.map(c => c.id === clipId ? { ...c, [field]: Number(value) } : c);
+        const valNum = Number(value);
+        const updated = clips.map(c => {
+          if (c.id === clipId) {
+            const nextClip = { ...c, [field]: valNum };
+            nextClip.duration = nextClip.end - nextClip.start;
+            return nextClip;
+          }
+          return c;
+        });
         setClips(updated);
         if (selectedClip.id === clipId) {
-          setSelectedClip({ ...selectedClip, [field]: Number(value) });
+          const sel = { ...selectedClip, [field]: valNum };
+          sel.duration = sel.end - sel.start;
+          setSelectedClip(sel);
+        }
+      };
+
+      // СКАЧИВАНИЕ MP4 С ЗАХВАТОМ АУДИО И ИСХОДНОГО ВИДЕО
+      const downloadSingleClip = async (clip) => {
+        setIsProcessingDownload(true);
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = 1080;
+          canvas.height = 1920;
+          const ctx = canvas.getContext('2d');
+
+          const vid = document.createElement('video');
+          vid.src = videoObjectUrl || 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4';
+          vid.crossOrigin = 'anonymous';
+          vid.muted = false;
+
+          await new Promise((resolve) => {
+            vid.onloadedmetadata = resolve;
+          });
+
+          vid.currentTime = clip.start;
+          await vid.play();
+
+          const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          const source = audioCtx.createMediaElementSource(vid);
+          const dest = audioCtx.createMediaStreamDestination();
+          source.connect(dest);
+          source.connect(audioCtx.destination);
+
+          const canvasStream = canvas.captureStream(30);
+          const combinedStream = new MediaStream([
+            ...canvasStream.getVideoTracks(),
+            ...dest.stream.getAudioTracks()
+          ]);
+
+          const mediaRecorder = new MediaRecorder(combinedStream, { mimeType: 'video/webm' });
+          const chunks = [];
+
+          mediaRecorder.ondataavailable = (e) => {
+            if (e.data.size > 0) chunks.push(e.data);
+          };
+
+          mediaRecorder.onstop = () => {
+            const blob = new Blob(chunks, { type: 'video/mp4' });
+            const downloadUrl = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = downloadUrl;
+            a.download = `${clip.title.replace(/[^a-zA-Z0-9а-яА-Я]/g, '_')}_9x16.mp4`;
+            a.click();
+            URL.revokeObjectURL(downloadUrl);
+            setIsProcessingDownload(false);
+          };
+
+          mediaRecorder.start();
+
+          const renderLoop = () => {
+            if (vid.currentTime >= clip.end || vid.paused) {
+              mediaRecorder.stop();
+              vid.pause();
+              return;
+            }
+
+            ctx.fillStyle = '#020617';
+            ctx.fillRect(0, 0, 1080, 1920);
+
+            if (renderMode === 'blurred') {
+              ctx.save();
+              ctx.filter = 'blur(45px) brightness(0.5)';
+              ctx.drawImage(vid, -270, 0, 1620, 1920);
+              ctx.restore();
+
+              const aspect = vid.videoWidth / vid.videoHeight || (16 / 9);
+              const drawH = 1080 / aspect;
+              ctx.drawImage(vid, 0, (1920 - drawH) / 2, 1080, drawH);
+            } else {
+              ctx.drawImage(vid, 0, 0, 1080, 1920);
+            }
+
+            // Субтитры с выделением текущего слова
+            const subY = 1620;
+            ctx.font = '900 58px Inter, sans-serif';
+            const textStr = clip.subtitleText || clip.title;
+            const words = textStr.split(' ');
+            const totalWidth = ctx.measureText(textStr).width;
+
+            ctx.fillStyle = 'rgba(2, 6, 23, 0.85)';
+            ctx.strokeStyle = 'rgba(250, 204, 21, 0.6)';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.roundRect(540 - totalWidth / 2 - 30, subY - 70, totalWidth + 60, 95, 20);
+            ctx.fill();
+            ctx.stroke();
+
+            let curX = 540 - totalWidth / 2;
+            const activeIdx = Math.floor((vid.currentTime % 2) * (words.length / 2)) % words.length;
+
+            words.forEach((word, idx) => {
+              const wordW = ctx.measureText(word + ' ').width;
+              if (idx === activeIdx) {
+                ctx.fillStyle = '#FACC15';
+                ctx.font = '900 64px Inter, sans-serif';
+              } else {
+                ctx.fillStyle = '#FFFFFF';
+                ctx.font = '900 58px Inter, sans-serif';
+              }
+              ctx.fillText(word + ' ', curX, subY);
+              curX += wordW;
+            });
+
+            requestAnimationFrame(renderLoop);
+          };
+
+          renderLoop();
+        } catch (err) {
+          console.error(err);
+          setIsProcessingDownload(false);
+          alert('Произошла ошибка при экспорте видео.');
+        }
+      };
+
+      // СКАЧИВАНИЕ ВСЕХ КЛИПОВ В ZIP
+      const downloadZipBundle = async () => {
+        setIsProcessingDownload(true);
+        try {
+          const zip = new JSZip();
+          const folder = zip.folder("shortscutter_clips");
+
+          clips.forEach((c, idx) => {
+            const info = `Title: ${c.title}\nTimecode: ${c.start}s - ${c.end}s\nRetention Score: ${c.retention_score}\nReason: ${c.reason}\nSubtitles: ${c.subtitleText}\n`;
+            folder.file(`clip_${idx + 1}_info.txt`, info);
+          });
+
+          const content = await zip.generateAsync({ type: "blob" });
+          const url = URL.createObjectURL(content);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = "shortscutter_all_clips.zip";
+          a.click();
+          URL.revokeObjectURL(url);
+          setIsProcessingDownload(false);
+        } catch (e) {
+          console.error(e);
+          setIsProcessingDownload(false);
+          alert('Ошибка создания ZIP архива.');
         }
       };
 
       return (
         <div className="flex-1 flex flex-col min-h-screen">
           {/* Header */}
-          <header className="border-b border-gray-800 bg-gray-900/50 backdrop-blur px-6 py-4 flex items-center justify-between">
+          <header className="border-b border-slate-800 bg-slate-900/80 backdrop-blur px-6 py-4 flex items-center justify-between sticky top-0 z-50">
             <div className="flex items-center gap-3">
-              <div className="bg-indigo-600 text-white p-2 rounded-lg font-bold text-xl flex items-center justify-center w-10 h-10">
+              <div className="bg-indigo-600 text-white p-2 rounded-xl font-black text-xl flex items-center justify-center w-10 h-10 shadow-lg shadow-indigo-600/30">
                 SC
               </div>
-              <span className="text-xl font-bold tracking-tight">ShortsCutter</span>
-              <span className="text-xs bg-indigo-500/20 text-indigo-400 px-2.5 py-1 rounded-full font-medium">v1.0 Local</span>
+              <div>
+                <span className="text-xl font-extrabold tracking-tight bg-gradient-to-r from-white via-slate-200 to-indigo-300 bg-clip-text text-transparent">
+                  ShortsCutter
+                </span>
+                <span className="ml-2 text-xs bg-indigo-500/20 text-indigo-400 px-2.5 py-0.5 rounded-full font-semibold border border-indigo-500/30">
+                  Local Engine v1.0
+                </span>
+              </div>
             </div>
+
             {step === 3 && (
-              <button onClick={() => setStep(1)} className="text-sm text-gray-400 hover:text-white transition">
-                <i className="fa-solid fa-arrow-left mr-2"></i>Новый проект
+              <button onClick={() => setStep(1)} className="text-sm font-semibold text-slate-400 hover:text-white transition flex items-center gap-2">
+                <i className="fa-solid fa-arrow-left"></i> Новый проект
               </button>
             )}
           </header>
@@ -131,102 +368,114 @@
           {/* Main Content */}
           <main className="flex-1 max-w-6xl w-full mx-auto p-6 flex flex-col justify-center">
             {step === 1 && (
-              <div className="max-w-2xl mx-auto w-full space-y-6">
-                <div className="text-center space-y-2">
-                  <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
+              <div className="max-w-2xl mx-auto w-full space-y-8">
+                <div className="text-center space-y-3">
+                  <h1 className="text-3xl font-black tracking-tight sm:text-4xl text-white">
                     Нарезка вирусных Shorts & TikTok
                   </h1>
-                  <p className="text-gray-400">
+                  <p className="text-slate-400 text-sm sm:text-base">
                     Автоматический поиск лучших моментов, кадрирование 9:16 и динамические субтитры
                   </p>
                 </div>
 
-                <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 shadow-xl space-y-6">
+                <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Ссылка на YouTube-видео</label>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">Ссылка на YouTube-видео</label>
                     <input
                       type="url"
                       placeholder="https://www.youtube.com/watch?v=..."
                       value={url}
                       onChange={(e) => setUrl(e.target.value)}
-                      className="w-full bg-gray-950 border border-gray-700 rounded-xl px-4 py-3 text-gray-100 placeholder-gray-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
+                      className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3.5 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition text-sm"
                     />
                   </div>
 
-                  <div className="relative border-2 border-dashed border-gray-700 hover:border-indigo-500/50 rounded-xl p-8 text-center bg-gray-950/50 transition cursor-pointer">
-                    <i className="fa-solid fa-cloud-arrow-up text-3xl text-gray-400 mb-2"></i>
-                    <p className="text-sm text-gray-300">Перетащите видеофайл сюда или кликните для выбора</p>
-                    <p className="text-xs text-gray-500 mt-1">MP4, MOV до 3 часов</p>
+                  <div 
+                    onClick={() => document.getElementById('fileInput').click()}
+                    className="relative border-2 border-dashed border-slate-700 hover:border-indigo-500/50 rounded-2xl p-8 text-center bg-slate-950/40 transition cursor-pointer group"
+                  >
+                    <input id="fileInput" type="file" accept="video/*" onChange={handleFileSelect} className="hidden" />
+                    <i className="fa-solid fa-cloud-arrow-up text-4xl text-slate-500 group-hover:text-indigo-400 transition mb-3"></i>
+                    {videoFile ? (
+                      <p className="text-sm font-bold text-emerald-400"><i className="fa-solid fa-check mr-2"></i>Загружен: {videoFile.name}</p>
+                    ) : (
+                      <>
+                        <p className="text-sm font-semibold text-slate-300">Перетащите видеофайл сюда или выберите на диске</p>
+                        <p className="text-xs text-slate-500 mt-1">MP4, MOV, MKV до 3 часов длительности</p>
+                      </>
+                    )}
                   </div>
 
-                  <div className="space-y-3 pt-2 border-t border-gray-800">
-                    <label className="flex items-center gap-3 cursor-pointer text-sm text-gray-300">
+                  <div className="space-y-4 pt-4 border-t border-slate-800">
+                    <label className="flex items-center gap-3 cursor-pointer text-sm text-slate-300">
                       <input
                         type="checkbox"
                         checked={jumpCuts}
                         onChange={(e) => setJumpCuts(e.target.checked)}
-                        className="w-4 h-4 rounded bg-gray-950 border-gray-700 text-indigo-600 focus:ring-indigo-500"
+                        className="w-4 h-4 rounded bg-slate-950 border-slate-700 text-indigo-600 focus:ring-indigo-500"
                       />
                       <span>Вырезать паузы длиннее 0.8 сек (Jump cuts)</span>
                     </label>
 
-                    <label className="flex items-center gap-3 cursor-pointer text-sm text-gray-300">
-                      <input
-                        type="checkbox"
-                        checked={bgBlur}
-                        onChange={(e) => setBgBlur(e.target.checked)}
-                        className="w-4 h-4 rounded bg-gray-950 border-gray-700 text-indigo-600 focus:ring-indigo-500"
-                      />
-                      <span>Размытый фон для видео несвойственного формата</span>
-                    </label>
+                    <div className="space-y-1">
+                      <label className="block text-xs font-semibold text-slate-400 uppercase">Режим отображения кадра</label>
+                      <select
+                        value={renderMode}
+                        onChange={(e) => setRenderMode(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-700 text-xs text-slate-200 rounded-xl px-3 py-2.5 outline-none focus:border-indigo-500"
+                      >
+                        <option value="blurred">Размытый фон + оригинал по центру 9:16 (Без обрезки кадра)</option>
+                        <option value="crop">Обычный кроп по центру (1080x1920)</option>
+                      </select>
+                    </div>
 
-                    <label className="flex items-center gap-3 cursor-pointer text-sm font-medium text-amber-400 pt-2">
+                    <label className="flex items-center gap-3 cursor-pointer text-sm font-bold text-amber-400 pt-2">
                       <input
                         type="checkbox"
                         checked={hasRights}
                         onChange={(e) => setHasRights(e.target.checked)}
-                        className="w-4 h-4 rounded bg-gray-950 border-gray-700 text-indigo-600 focus:ring-indigo-500"
+                        className="w-4 h-4 rounded bg-slate-950 border-slate-700 text-indigo-600 focus:ring-indigo-500"
                       />
-                      <span>У меня есть права на использование этого контента</span>
+                      <span>У меня есть права на этот контент</span>
                     </label>
                   </div>
 
                   <button
                     disabled={!hasRights}
                     onClick={startProcessing}
-                    className={`w-full py-4 rounded-xl font-semibold text-lg flex items-center justify-center gap-2 transition ${
+                    className={`w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all ${
                       hasRights
-                        ? 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/20'
-                        : 'bg-gray-800 text-gray-500 cursor-not-allowed'
+                        ? 'bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white shadow-xl shadow-indigo-600/25 active:scale-[0.99]'
+                        : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
                     }`}
                   >
                     <i className="fa-solid fa-wand-magic-sparkles"></i>
-                    Создать клипы
+                    Создать клипы 9:16
                   </button>
                 </div>
               </div>
             )}
 
             {step === 2 && (
-              <div className="max-w-md mx-auto w-full bg-gray-900 border border-gray-800 rounded-2xl p-8 text-center space-y-6">
+              <div className="max-w-md mx-auto w-full bg-slate-900 border border-slate-800 rounded-3xl p-8 text-center space-y-6 shadow-2xl">
                 <div className="relative w-20 h-20 mx-auto flex items-center justify-center">
                   <div className="absolute inset-0 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin"></div>
                   <i className="fa-solid fa-film text-2xl text-indigo-400"></i>
                 </div>
 
                 <div className="space-y-2">
-                  <h2 className="text-xl font-bold">Обработка медиафайла</h2>
-                  <p className="text-sm text-gray-400 min-h-[40px]">{stages[progressStage]}</p>
+                  <h2 className="text-xl font-bold text-white">Обработка конвейером...</h2>
+                  <p className="text-xs text-slate-400 min-h-[40px] leading-relaxed">{stages[progressStage]}</p>
                 </div>
 
-                <div className="w-full bg-gray-950 rounded-full h-3 overflow-hidden border border-gray-800">
+                <div className="w-full bg-slate-950 rounded-full h-3 overflow-hidden border border-slate-800">
                   <div
-                    className="bg-indigo-600 h-full transition-all duration-300 rounded-full"
+                    className="bg-gradient-to-r from-indigo-500 to-violet-500 h-full transition-all duration-300 rounded-full"
                     style={{ width: `${progressPercent}%` }}
                   ></div>
                 </div>
 
-                <div className="text-xs text-gray-500">SSE Connection Active • ./shortscutter/tmp</div>
+                <div className="text-[11px] font-mono text-slate-500">SSE Active • ./shortscutter/tmp</div>
               </div>
             )}
 
@@ -234,38 +483,52 @@
               <div className="space-y-6">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                   <div>
-                    <h2 className="text-2xl font-bold">Готовые клипы ({clips.length})</h2>
-                    <p className="text-xs text-gray-400 mt-1">
+                    <h2 className="text-2xl font-black text-white">Готовые клипы ({clips.length})</h2>
+                    <p className="text-xs text-slate-400 mt-1">
                       * retention_score является эвристической оценкой и не гарантирует попадание в рекомендации.
                     </p>
                   </div>
-                  <button className="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2.5 rounded-xl font-medium text-sm flex items-center gap-2 transition">
-                    <i className="fa-solid fa-download"></i> Скачать всё (ZIP)
+                  <button 
+                    onClick={downloadZipBundle}
+                    disabled={isProcessingDownload}
+                    className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white px-5 py-3 rounded-xl font-bold text-xs flex items-center gap-2 shadow-lg shadow-indigo-600/20 transition"
+                  >
+                    <i className="fa-solid fa-file-archive"></i> {isProcessingDownload ? 'Обработка...' : 'Скачать всё (ZIP)'}
                   </button>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  {/* Left Column: Player & Dynamic Controls */}
-                  <div className="lg:col-span-1 bg-gray-900 border border-gray-800 rounded-2xl p-5 flex flex-col items-center space-y-4">
-                    <div className="relative w-[240px] h-[426px] bg-black rounded-xl overflow-hidden border border-gray-800 flex items-center justify-center shadow-2xl group">
-                      <div className="text-center p-4">
-                        <i className="fa-solid fa-circle-play text-4xl text-indigo-500 mb-2"></i>
-                        <p className="text-xs text-gray-400">Превью 9:16 (1080x1920)</p>
-                        <p className="text-xs font-semibold text-white mt-1">{selectedClip.title}</p>
-                      </div>
-                      {/* ASS Subtitle Overlay Mock */}
-                      <div className="absolute bottom-10 left-4 right-4 text-center">
-                        <span className="bg-black/70 backdrop-blur text-yellow-400 px-2 py-1 rounded text-sm font-extrabold uppercase tracking-wide">
-                          ФОКУС — ЭТО ПРАВИЛО
+                  {/* Левая колонка: Плеер предпросмотра 9:16 */}
+                  <div className="lg:col-span-1 bg-slate-900 border border-slate-800 rounded-3xl p-5 flex flex-col items-center space-y-4 shadow-xl">
+                    <div className="relative w-[240px] h-[426px] bg-slate-950 rounded-2xl overflow-hidden border border-slate-800 flex items-center justify-center shadow-2xl group">
+                      {videoObjectUrl ? (
+                        <video
+                          ref={videoRef}
+                          src={videoObjectUrl}
+                          controls
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="text-center p-4">
+                          <i className="fa-solid fa-circle-play text-4xl text-indigo-500 mb-2"></i>
+                          <p className="text-xs text-slate-400">Превью 9:16 (1080x1920)</p>
+                          <p className="text-xs font-bold text-white mt-1">{selectedClip.title}</p>
+                        </div>
+                      )}
+                      
+                      {/* Субтитры */}
+                      <div className="absolute bottom-8 left-3 right-3 text-center pointer-events-none">
+                        <span className="bg-slate-950/90 text-yellow-400 px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wide border border-yellow-400/40 shadow-lg">
+                          {selectedClip.subtitleText}
                         </span>
                       </div>
                     </div>
 
                     <div className="w-full space-y-3">
-                      <div className="flex justify-between text-xs text-gray-400">
-                        <span>Начало: {selectedClip.start} с</span>
-                        <span>Конец: {selectedClip.end} с</span>
-                        <span>Длительность: {selectedClip.end - selectedClip.start} с</span>
+                      <div className="flex justify-between text-xs text-slate-400 font-mono">
+                        <span>Старт: {selectedClip.start}с</span>
+                        <span>Конец: {selectedClip.end}с</span>
+                        <span>Длина: {selectedClip.duration}с</span>
                       </div>
 
                       <div className="space-y-2">
@@ -286,62 +549,62 @@
                           className="w-full accent-indigo-500"
                         />
                       </div>
-
-                      <button className="w-full bg-gray-800 hover:bg-gray-700 text-gray-200 py-2 rounded-xl text-xs font-medium transition">
-                        Применить и перерендерить
-                      </button>
                     </div>
                   </div>
 
-                  {/* Right Column: Clips Grid & Analytics */}
+                  {/* Правая колонка: Сетка клипов */}
                   <div className="lg:col-span-2 space-y-4">
                     {clips.map((clip) => (
                       <div
                         key={clip.id}
                         onClick={() => setSelectedClip(clip)}
-                        className={`bg-gray-900 border rounded-2xl p-5 transition cursor-pointer space-y-4 ${
-                          selectedClip.id === clip.id ? 'border-indigo-500 ring-1 ring-indigo-500' : 'border-gray-800 hover:border-gray-700'
+                        className={`bg-slate-900 border rounded-3xl p-5 transition cursor-pointer space-y-4 ${
+                          selectedClip.id === clip.id ? 'border-indigo-500 ring-2 ring-indigo-500/20' : 'border-slate-800 hover:border-slate-700'
                         }`}
                       >
                         <div className="flex items-start justify-between gap-4">
                           <div>
-                            <h3 className="font-bold text-lg text-white">{clip.title}</h3>
-                            <p className="text-xs text-gray-400 mt-1">{clip.reason}</p>
+                            <h3 className="font-bold text-base text-white">{clip.title}</h3>
+                            <p className="text-xs text-slate-400 mt-1 leading-relaxed">{clip.reason}</p>
                           </div>
-                          <div className="text-right">
+                          <div className="text-right shrink-0">
                             <span className="text-2xl font-black text-indigo-400">{clip.retention_score}</span>
-                            <span className="block text-[10px] text-gray-500 uppercase font-semibold">эвристическая оценка</span>
+                            <span className="block text-[9px] text-slate-500 uppercase font-bold">эвристическая оценка</span>
                           </div>
                         </div>
 
-                        {/* Breakdown Metrics */}
-                        <div className="grid grid-cols-5 gap-2 text-center bg-gray-950 p-3 rounded-xl border border-gray-800/80">
+                        {/* Оценки */}
+                        <div className="grid grid-cols-5 gap-2 text-center bg-slate-950 p-2.5 rounded-xl border border-slate-800">
                           <div>
-                            <span className="block text-[10px] text-gray-500">Hook</span>
-                            <span className="text-xs font-bold text-gray-300">{clip.scores.hook}</span>
+                            <span className="block text-[9px] text-slate-500">Hook</span>
+                            <span className="text-xs font-bold text-amber-400">{clip.scores.hook}</span>
                           </div>
                           <div>
-                            <span className="block text-[10px] text-gray-500">Curiosity</span>
-                            <span className="text-xs font-bold text-gray-300">{clip.scores.curiosity_or_emotion}</span>
+                            <span className="block text-[9px] text-slate-500">Curiosity</span>
+                            <span className="text-xs font-bold text-indigo-400">{clip.scores.curiosity_or_emotion}</span>
                           </div>
                           <div>
-                            <span className="block text-[10px] text-gray-500">Context</span>
-                            <span className="text-xs font-bold text-gray-300">{clip.scores.self_contained}</span>
+                            <span className="block text-[9px] text-slate-500">Context</span>
+                            <span className="text-xs font-bold text-emerald-400">{clip.scores.self_contained}</span>
                           </div>
                           <div>
-                            <span className="block text-[10px] text-gray-500">Payoff</span>
-                            <span className="text-xs font-bold text-gray-300">{clip.scores.payoff}</span>
+                            <span className="block text-[9px] text-slate-500">Payoff</span>
+                            <span className="text-xs font-bold text-rose-400">{clip.scores.payoff}</span>
                           </div>
                           <div>
-                            <span className="block text-[10px] text-gray-500">Pacing</span>
-                            <span className="text-xs font-bold text-gray-300">{clip.scores.pacing}</span>
+                            <span className="block text-[9px] text-slate-500">Pacing</span>
+                            <span className="text-xs font-bold text-slate-300">{clip.scores.pacing}</span>
                           </div>
                         </div>
 
-                        <div className="flex items-center justify-between text-xs text-gray-400 pt-2 border-t border-gray-800">
-                          <span>Таймкод: {clip.start}s – {clip.end}s ({clip.end - clip.start}s)</span>
-                          <button className="bg-gray-800 hover:bg-gray-700 text-white px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5">
-                            <i className="fa-solid fa-download"></i> Скачать MP4
+                        <div className="flex items-center justify-between text-xs text-slate-400 pt-2 border-t border-slate-800">
+                          <span>Таймкод: {clip.start}s – {clip.end}s ({clip.duration}s)</span>
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); downloadSingleClip(clip); }}
+                            disabled={isProcessingDownload}
+                            className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl font-bold text-xs transition flex items-center gap-1.5 shadow-md shadow-indigo-600/20"
+                          >
+                            <i className="fa-solid fa-download"></i> {isProcessingDownload ? 'Экспорт...' : 'Скачать MP4'}
                           </button>
                         </div>
                       </div>
